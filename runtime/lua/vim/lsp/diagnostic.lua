@@ -542,7 +542,7 @@ function M.goto_prev(opts)
   )
 end
 
---- Get the previous diagnostic closest to the cursor_position
+--- Get the next diagnostic closest to the cursor_position
 ---@param opts table See |vim.lsp.diagnostic.goto_next()|
 ---@return table Next diagnostic
 function M.get_next(opts)
