@@ -459,6 +459,23 @@ function tests.basic_check_buffer_open_and_change_incremental_editing()
   }
 end
 
+function tests.show_message_request()
+  skeleton {
+    on_init = function(_params)
+      return { capabilities = {} }
+    end;
+    body = function()
+      notify('start')
+      notify('window/showMessageRequest', { actions = {
+              { title = "action1" };
+              { title = "action2" };
+          } })
+      expect_notification('window/configuration', { title = "action1" } )
+      notify('shutdown')
+    end;
+  }
+end
+
 function tests.invalid_header()
   io.stdout:write("Content-length: \r\n")
 end

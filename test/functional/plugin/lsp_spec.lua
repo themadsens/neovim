@@ -11,6 +11,7 @@ local pesc = helpers.pesc
 local insert = helpers.insert
 local retry = helpers.retry
 local NIL = helpers.NIL
+local feed = helpers.feed
 
 -- Use these to get access to a coroutine so that I can run async tests and use
 -- yield.
@@ -851,6 +852,42 @@ describe('LSP', function()
           end
           eq(table.remove(expected_callbacks), {err, method, params, client_id}, "expected callback")
           if method == 'finish' then
+            client.stop()
+          end
+        end;
+      }
+    end)
+  end)
+
+  describe('client server messaging tests', function()
+    it('client should return action in response to window/showMessageRequest', function()
+      local expected_callbacks = {
+        {NIL, "shutdown", {}, 1};
+        {NIL, "window/showMessageRequest", { actions = {
+              { title = "action1" };
+              { title = "action2" };
+          }}, 1};
+        {NIL, "start", {}, 1};
+      }
+      local client
+      test_rpc_server {
+        test_name = "show_message_request";
+        on_init = function(_client)
+          client = _client
+        end;
+        on_exit = function(code, signal)
+          eq(0, code, "exit code", fake_lsp_logfile)
+          eq(0, signal, "exit signal", fake_lsp_logfile)
+        end;
+        on_callback = function(err, method, params, client_id)
+          eq(table.remove(expected_callbacks), {err, method, params, client_id}, "expected callback")
+          if method == 'window/showMessageRequest' then
+            local result = exec_lua([=[
+              local method, params = ...
+              return require'vim.lsp.handlers'['window/showMessageRequest'](err, method, params, TEST_RPC_CLIENT_ID)]=], method, params)
+            client.notify('window/showMessageRequest', result)
+          end
+          if method == 'shutdown' then
             client.stop()
           end
         end;
