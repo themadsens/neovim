@@ -9601,6 +9601,8 @@ static void f_stdpath(typval_T *argvars, typval_T *rettv, FunPtr fptr)
     rettv->vval.v_string = (char_u *)get_xdg_home(kXDGDataHome);
   } else if (strequal(p, "cache")) {
     rettv->vval.v_string = (char_u *)get_xdg_home(kXDGCacheHome);
+  } else if (strequal(p, "log")) {
+    rettv->vval.v_string = (char_u *)get_nvim_logpath();
   } else if (strequal(p, "config_dirs")) {
     get_xdg_var_list(kXDGConfigDirs, rettv);
   } else if (strequal(p, "data_dirs")) {

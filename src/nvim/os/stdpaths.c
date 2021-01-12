@@ -108,6 +108,33 @@ char *get_xdg_home(const XDGVarType idx)
   return dir;
 }
 
+/// Return nvim log directory
+///
+/// @return [allocated] "$XDG_CACHE_HOME/nvim/logs"
+char *get_nvim_logpath(void)
+  FUNC_ATTR_WARN_UNUSED_RESULT
+{
+  char *dir = stdpaths_get_xdg_var(kXDGCacheHome);
+  if (dir) {
+    dir = concat_fnames_realloc(dir, "nvim", true);
+    dir = concat_fnames_realloc(dir, "logs", true);
+  } else {
+    dir = "";
+  }
+  return dir;
+}
+
+/// Return subpath of nvim log directory
+///
+/// @param[in]  fname  New component of the path.
+///
+/// @return [allocated] `$XDG_CACHE_HOME/nvim/logs/{fname}`
+char *stdpaths_user_log_subpath(const char *fname)
+  FUNC_ATTR_WARN_UNUSED_RESULT FUNC_ATTR_NONNULL_ALL FUNC_ATTR_NONNULL_RET
+{
+  return concat_fnames_realloc(get_nvim_logpath(), fname, true);
+}
+
 /// Return subpath of $XDG_CONFIG_HOME
 ///
 /// @param[in]  fname  New component of the path.
