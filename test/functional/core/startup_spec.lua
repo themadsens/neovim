@@ -458,7 +458,7 @@ describe('user config init', function()
 
   it('loads init.lua from XDG config home by default', function()
     clear{ args_rm={'-u' }, env={ XDG_CONFIG_HOME=xconfig }}
-
+    feed('<cr>') -- confirm "Conflicting config ..." message
     eq(1, eval('g:lua_rc'))
     eq(init_lua_path, eval('$MYVIMRC'))
   end)
@@ -473,6 +473,7 @@ describe('user config init', function()
 
     it('loads custom lua config and does not set $MYVIMRC', function()
       clear{ args={'-u', custom_lua_path }, env={ XDG_CONFIG_HOME=xconfig }}
+      feed('<cr>') -- confirm "Conflicting config ..." message
       eq(1, eval('g:custom_lua_rc'))
       eq('', eval('$MYVIMRC'))
     end)
@@ -487,7 +488,7 @@ describe('user config init', function()
 
     it('loads default lua config, but shows an error', function()
       clear{ args_rm={'-u'}, env={ XDG_CONFIG_HOME=xconfig }}
-      feed('<cr>') -- TODO check this, test execution is blocked without it
+      feed('<cr>') -- confirm "Conflicting config ..." message
       eq(1, eval('g:lua_rc'))
       matches('Conflicting configs', meths.exec('messages', true))
     end)
