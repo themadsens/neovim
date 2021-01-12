@@ -206,8 +206,6 @@ local diagnostic_cache = setmetatable({}, bufnr_and_client_cacher_mt)
 local diagnostic_cache_lines = setmetatable({}, bufnr_and_client_cacher_mt)
 local diagnostic_cache_counts = setmetatable({}, bufnr_and_client_cacher_mt)
 
-local _bufs_waiting_to_update = setmetatable({}, bufnr_and_client_cacher_mt)
-
 --- Store Diagnostic[] by line
 ---
 ---@param diagnostics Diagnostic[]
@@ -833,19 +831,18 @@ end
 --- Used to handle
 --@private
 function M._execute_scheduled_display(bufnr, client_id)
-  local config = _bufs_waiting_to_update[bufnr][client_id]
-  if not config then
+  local client = vim.lsp.get_client_by_id(client_id)
+  if not client.diagnostic_config then
     return
   end
 
-  M.display(nil, bufnr, client_id, config)
+  M.display(nil, bufnr, client_id, client.diagnostic_config)
 
   -- Clear the args so we don't display unnecessarily.
-  _bufs_waiting_to_update[bufnr][client_id] = nil
+  --
+  client.bufs_waiting_to_update[bufnr][client_id] = nil
 
 end
-
-local registered = {}
 
 local make_augroup_key = function(bufnr, client_id)
   return string.format("LspDiagnosticInsertLeave:%s:%s", bufnr, client_id)
@@ -854,10 +851,9 @@ end
 --- Used to schedule diagnostic update on user supplied autocmds
 ---
 --- For parameter description, see |M.display()|
-function M._schedule_display(bufnr, client_id, config)
-  local key = make_augroup_key(bufnr, client_id)
-  if not registered[key] and ( #config.show_diagnostic_autocmds > 0 ) then
-    vim.cmd(string.format("augroup %s", key))
+function M._schedule_display_autocmd(bufnr, client, augroup_key, config)
+  if not client.registered_autocommands[bufnr][augroup_key] and ( #config.show_diagnostic_autocmds > 0 ) then
+    vim.cmd(string.format("augroup %s", augroup_key))
     vim.cmd("  au!")
     vim.cmd(
       string.format(
@@ -865,12 +861,12 @@ function M._schedule_display(bufnr, client_id, config)
         table.concat(config.show_diagnostic_autocmds, ","),
         bufnr,
         bufnr,
-        client_id
+        client.client_id
       )
     )
     vim.cmd("augroup END")
 
-    registered[key] = true
+    client.registered_autocommands[bufnr][augroup_key] = true
   end
 end
 
@@ -997,18 +993,28 @@ function M.on_publish_diagnostics(_, _, params, client_id, _, config)
     return
   end
 
-  config = vim.lsp._with_extend('vim.lsp.diagnostic.on_publish_diagnostics', {
+  local client = vim.lsp.get_client_by_id(client_id)
+  client.diagnostic_config = vim.lsp._with_extend('vim.lsp.diagnostic.on_publish_diagnostics', {
     signs = true,
     underline = true,
     virtual_text = true,
     show_diagnostic_autocmds = { "InsertLeave", "CursorHoldI" },
   }, config)
 
-  _bufs_waiting_to_update[bufnr][client_id] = config
+  if not client.bufs_waiting_to_update then
+    client.bufs_waiting_to_update = {}
+    client.bufs_waiting_to_update = setmetatable({}, bufnr_and_client_cacher_mt)
+  end
 
-  local key = make_augroup_key(bufnr, client_id)
-  if not registered[key] then
-      M._schedule_display(bufnr, client_id, config)
+  client.bufs_waiting_to_update[bufnr] = true
+
+  if not client.registered_autocommands[bufnr] then
+    client.registered_autocommands[bufnr] = {}
+  end
+
+  local augroup_key = make_augroup_key(bufnr, client_id)
+  if not client.registered_autocommands[bufnr][augroup_key] then
+      M._schedule_display(bufnr, client_id, augroup_key, config)
   end
 
 end
