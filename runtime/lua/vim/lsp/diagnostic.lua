@@ -857,11 +857,21 @@ end
 function M._schedule_display(bufnr, client_id, config)
   local key = make_augroup_key(bufnr, client_id)
   if not registered[key] and ( #config.show_diagnostic_autocmds > 0 ) then
+    local diagnostic_cmd = "vim.lsp.diagnostic._execute_scheduled_display(%s, %s)"
     vim.cmd(string.format("augroup %s", key))
     vim.cmd("  au!")
+    local cmd
+    if config.diagnostic_delay > 0 then
+      cmd = string.format(":call timer_start( %i, { -> v:lua.%s} )",
+              config.diagnostic_delay,
+              diagnostic_cmd)
+    else
+      cmd = diagnostic_cmd
+    end
+    print(cmd)
     vim.cmd(
       string.format(
-        [[autocmd %s <buffer=%s> :lua vim.lsp.diagnostic._execute_scheduled_display(%s, %s)]],
+        "autocmd %s <buffer=%s> "..cmd,
         table.concat(config.show_diagnostic_autocmds, ","),
         bufnr,
         bufnr,
@@ -1002,6 +1012,7 @@ function M.on_publish_diagnostics(_, _, params, client_id, _, config)
     underline = true,
     virtual_text = true,
     show_diagnostic_autocmds = false,
+    diagnostic_delay = 0,
   }, config)
 
   _bufs_waiting_to_update[bufnr][client_id] = config
