@@ -6,8 +6,33 @@ local api = vim.api
 local buf = require 'vim.lsp.buf'
 
 local M = {}
+local client_errors = {}
+
+local handler_error = {
+  ClientDown = 1;
+  StatusMissingEnd = 2;
+  ShowMessage = 3;
+}
 
 -- FIXME: DOC: Expose in vimdocs
+
+--@private
+--- Checks if error has been reported, and gates subsequent reportign of error
+--@param client_id int id of client that has repoted error
+--@param error handler_err enum of error
+local function check_client_error(client_id, error)
+  if not client_errors[client_id] then
+    client_errors[client_id] = {}
+  end
+
+  local reported = false
+  if client_errors[client_id][error] then
+    reported = true
+  else
+    client_errors[client_id][error] = true
+  end
+  return reported
+end
 
 --@private
 --- Writes to error buffer.
@@ -29,7 +54,7 @@ end
 local function progress_callback(_, _, params, client_id)
   local client = vim.lsp.get_client_by_id(client_id)
   local client_name = client and client.name or string.format("id=%d", client_id)
-  if not client then
+  if not client and not check_client_error(client_id, handler_error.ClientDown) then
     err_message("LSP[", client_name, "] client has shut down after sending the message")
   end
   local val = params.value    -- unspecified yet
@@ -47,7 +72,9 @@ local function progress_callback(_, _, params, client_id)
       client.messages.progress[token].message = val.message;
       client.messages.progress[token].percentage = val.percentage;
     elseif val.kind == 'end' then
-      if client.messages.progress[token] == nil then
+      if client.messages.progress[token] == nil and
+        not check_client_error(client_id, handler_error.ProgressError) then
+
         err_message("LSP[", client_name, "] received `end` message with no corresponding `begin`")
       else
         client.messages.progress[token].message = val.message
@@ -69,7 +96,7 @@ M['window/workDoneProgress/create'] =  function(_, _, params, client_id)
   local client = vim.lsp.get_client_by_id(client_id)
   local token = params.token  -- string or number
   local client_name = client and client.name or string.format("id=%d", client_id)
-  if not client then
+  if not client and not check_client_error(client_id, handler_error.ClientDown) then
     err_message("LSP[", client_name, "] client has shut down after sending the message")
   end
   client.messages.progress[token] = {}
@@ -148,7 +175,7 @@ end
 --@see https://microsoft.github.io/language-server-protocol/specifications/specification-current/#workspace_configuration
 M['workspace/configuration'] = function(err, _, params, client_id)
   local client = vim.lsp.get_client_by_id(client_id)
-  if not client then
+  if not client and not check_client_error(client_id, handler_error.ClientDown) then
     err_message("LSP[id=", client_id, "] client has shut down after sending the message")
   end
   if err then error(vim.inspect(err)) end
@@ -355,7 +382,7 @@ M['window/logMessage'] = function(_, _, result, client_id)
   local message = result.message
   local client = vim.lsp.get_client_by_id(client_id)
   local client_name = client and client.name or string.format("id=%d", client_id)
-  if not client then
+  if not client and not check_client_error(client_id, handler_error.ClientDown) then
     err_message("LSP[", client_name, "] client has shut down after sending the message")
   end
   if message_type == protocol.MessageType.Error then
@@ -376,10 +403,12 @@ M['window/showMessage'] = function(_, _, result, client_id)
   local message = result.message
   local client = vim.lsp.get_client_by_id(client_id)
   local client_name = client and client.name or string.format("id=%d", client_id)
-  if not client then
+  if not client and not check_client_error(client_id, handler_error.ClientError) then
     err_message("LSP[", client_name, "] client has shut down after sending the message")
   end
-  if message_type == protocol.MessageType.Error then
+  if message_type == protocol.MessageType.Error and not
+    check_client_error(client_id, handler_error.ShowMessage) then
+
     err_message("LSP[", client_name, "] ", message)
   else
     local message_type_name = protocol.MessageType[message_type]
