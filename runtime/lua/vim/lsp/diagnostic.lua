@@ -1185,9 +1185,13 @@ function M.set_loclist(opts)
   local items = {}
   local insert_diag = function(diag)
     local pos = diag.range.start
+    -- Offset for diagnostic reported on terminating EOL character
     local row = pos.line
-    local col = util.character_offset(bufnr, row, pos.character)
+    if row == vim.api.nvim_buf_line_count(bufnr) then
+      row = row - 1
+    end
 
+    local col = util.character_offset(bufnr, row, pos.character)
     local line = (api.nvim_buf_get_lines(bufnr, row, row + 1, false) or {""})[1]
 
     table.insert(items, {
