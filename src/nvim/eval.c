@@ -7304,7 +7304,9 @@ bool callback_from_typval(Callback *const callback, typval_T *const arg)
              && arg->vval.v_string != NULL
              && ascii_isdigit(*arg->vval.v_string)) {
     r = FAIL;
-  } else if (arg->v_type == VAR_FUNC || arg->v_type == VAR_STRING) {
+  } else if (arg->vval.v_string != NULL
+             && (arg->v_type == VAR_FUNC 
+             || arg->v_type == VAR_STRING)) {
     char_u *name = arg->vval.v_string;
     func_ref(name);
     callback->data.funcref = vim_strsave(name);
