@@ -25,9 +25,7 @@
 #include "nvim/mbyte.h"  // for utf8_to_utf16, utf16_to_utf8
 #endif
 
-#ifdef HAVE__NSGETENVIRON
 #include <crt_externs.h>
-#endif
 
 #ifdef HAVE_SYS_UTSNAME_H
 #include <sys/utsname.h>
@@ -204,11 +202,7 @@ size_t os_get_fullenv_size(void)
 
   FreeEnvironmentStringsW(envstrings);
 #else
-# if defined(HAVE__NSGETENVIRON)
   char **environ = *_NSGetEnviron();
-# else
-  extern char         **environ;
-# endif
 
   while (environ[len] != NULL) {
     len++;
@@ -260,11 +254,7 @@ void os_copy_fullenv(char **env, size_t env_size)
 
   FreeEnvironmentStringsW(envstrings);
 #else
-# if defined(HAVE__NSGETENVIRON)
   char **environ = *_NSGetEnviron();
-# else
-  extern char         **environ;
-# endif
 
   for (size_t i = 0; i < env_size && environ[i] != NULL; i++) {
     env[i] = xstrdup(environ[i]);
@@ -320,11 +310,7 @@ char *os_getenvname_at_index(size_t index)
   FreeEnvironmentStringsW(envstrings);
   return name;
 #else
-# if defined(HAVE__NSGETENVIRON)
   char **environ = *_NSGetEnviron();
-# else
-  extern char         **environ;
-# endif
 
   // check if index is inside the environ array
   for (size_t i = 0; i <= index; i++) {
